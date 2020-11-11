@@ -3,19 +3,16 @@
 # V4 Uses a single spreadsheet for all inputs
 
 library(readxl)
-
-baseline_directory <- "C:/Users/Howard/Documents/Bristol/Covid-19/Cost-effectiveness of lockdowns"
-setwd(paste0(baseline_directory, "/code"))
-
+library(writexl)
 
 
 # Function to run decision tree model
-source("generate_costs_qalys_3.R")
+source("code/generate_costs_qalys_3.R")
 
 country_names <- c("UK", "Ireland", "Spain", "Germany", "Sweden")
 
 # Global input parameters and settings. Includes costs and QALYs for decision tree model
-global_inputs <- read.xlsx(file = paste0(baseline_directory, "/data/covid_cea_input_data.xlsx"), sheetName = "global_inputs")
+global_inputs <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "global_inputs"))
 rownames(global_inputs) <- global_inputs[, "Parameter"]
 
 # OECD PPP 2019 accessed 5th October 2020
@@ -40,19 +37,19 @@ prop_female <- global_inputs["prop_female", "Value"]
 
 
 # Reported cases
-cases_raw <- read.xlsx(file = paste0(baseline_directory, "/data/covid_cea_input_data.xlsx"), sheetName = "total_cases")
-cases_mitigation <- cases_raw[, "Cases.by.July.20th"]
+cases_raw <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "total_cases"))
+cases_mitigation <- cases_raw[, "Cases by July 20th"]
 names(cases_mitigation) <- cases_raw[, "Country"]
 
 # Reported cases
-hospitalisations_raw <- read.xlsx(file = paste0(baseline_directory, "/data/covid_cea_input_data.xlsx"), sheetName = "total_hospitalisations")
+hospitalisations_raw <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "total_hospitalisations"))
 hospitalisations_mitigation <- hospitalisations_raw[, "Hospitalisations"]
 hospitalisations_mitigation <- as.numeric(unlist(lapply(hospitalisations_mitigation, toString)))
-names(hospitalisations_mitigation) <- hospitalisations_raw[, "NA."]
+names(hospitalisations_mitigation) <- hospitalisations_raw[, "...1"]
 
 # Reported deaths
-deaths_raw <- read.xlsx(file = paste0(baseline_directory, "/data/covid_cea_input_data.xlsx"), sheetName = "total_deaths")
-deaths_mitigation <- deaths_raw[, "Total.covid.deaths"]
+deaths_raw <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "total_deaths"))
+deaths_mitigation <- deaths_raw[, "Total covid deaths"]
 names(deaths_mitigation) <- deaths_raw[, "Country"]
 
 # Set Sweden's hospitalisations to be cases * ratio observed across all other countries
@@ -65,16 +62,16 @@ dQALYS_lost_table <- matrix(nrow = 4, ncol = 5)
 rownames(dQALYS_lost_table) <- c("Mitigation", "A", "B", "C")
 
 # ONS lifetables for males and females in UK
-lifetable_male_uk <- read.xlsx(paste0(baseline_directory,"/data/covid_cea_input_data.xlsx"), sheetName = "uk_lifetable_male")
-lifetable_female_uk <- read.xlsx(paste0(baseline_directory,"/data/covid_cea_input_data.xlsx"), sheetName = "uk_lifetable_female")
+lifetable_male_uk <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "uk_lifetable_male"))
+lifetable_female_uk <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "uk_lifetable_female"))
 # WHO data Probability of dying between year x and x+1 for each gender and each country
-who_lifetables_qx <- read.xlsx(paste0(baseline_directory,"/data/covid_cea_input_data.xlsx"), sheetName = "who_lifetables")
+who_lifetables_qx <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "who_lifetables"))
 
 # UK relevant QOL data but this will be applied to all countries
-qol_norm_data <- read.xlsx(paste0(baseline_directory,"/data/covid_cea_input_data.xlsx"), sheetName = "qol_norm_data")
+qol_norm_data <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "qol_norm_data"))
 
 # Age at death distribution
-age_death_distribution <- read.xlsx(paste0(baseline_directory,"/data/covid_cea_input_data.xlsx"), sheetName = "age_death")
+age_death_distribution <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "age_death"))
 # remove the row with totals
 age_death_distribution <- age_death_distribution[-11,]
 
@@ -83,7 +80,7 @@ age_death_distribution <- age_death_distribution[-11,]
 
 for(cmmid_simulation in c("A", "B", "C")) {
 
-  source("calculate_qalys_4.R")
+  source("code/calculate_qalys_4.R")
   dQALYS_lost_table["Mitigation", ] <- dQALYs_lost
   dQALYS_lost_table[cmmid_simulation, ] <- dQALYs_lost_cmmid
 
@@ -96,14 +93,14 @@ for(cmmid_simulation in c("A", "B", "C")) {
   cmmid_deaths <- colSums(cmmid_deaths)
   
   # Hospitalisations modelled by the cmmid no mitigation scenario
-  cmmid_mean_hospital_stay <- 8
-  cmmid_mean_icu_stay <- 10
-  cmmid_hospitalisations <- cmmid_raw[, "CMMID.Non.ICU.bed.days"] / cmmid_mean_hospital_stay
-  cmmid_icu <- cmmid_raw[, "CMMID.Non.ICU.bed.days"] / cmmid_mean_icu_stay
+  cmmid_mean_hospital_stay <- global_inputs["cmmid_mean_hospital_stay", "Value"]
+  cmmid_mean_icu_stay <- global_inputs["cmmid_mean_icu_stay", "Value"]
+  cmmid_hospitalisations <- cmmid_raw[, "CMMID Non-ICU bed days"] / cmmid_mean_hospital_stay
+  cmmid_icu <- cmmid_raw[, "CMMID Non-ICU bed days"] / cmmid_mean_icu_stay
   names(cmmid_hospitalisations) <- names(cmmid_icu) <- c(unlist(lapply(cmmid_raw[, "Country"], toString)))
   
   # Cases modelled by the cmmid no mitigation scenario
-  cmmid_cases <- cmmid_raw[, "CMMID.Total.cases.20.July"]
+  cmmid_cases <- cmmid_raw[, "CMMID Total cases 20 July"]
   names(cmmid_cases) <- c(unlist(lapply(cmmid_raw[, "Country"], toString)))
   
   # No mitigation scenario entirely follows cmmid projections
@@ -116,11 +113,11 @@ for(cmmid_simulation in c("A", "B", "C")) {
   cmmid_hospitalisation_ratio <- (cmmid_hospitalisations + cmmid_icu)/cmmid_cases
   
   # For comparison include GPD impact
-  imf_gdp_loss <- read.xlsx(file = paste0(baseline_directory, "/data/covid_cea_input_data.xlsx"), sheetName = "gdp_impact")
-  population_size <- imf_gdp_loss[, c("Country", "Population.size")]
-  imf_gdp_loss <- imf_gdp_loss[, c("Country", "IMF.GDP.loss")]
+  imf_gdp_loss <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "gdp_impact"))
+  population_size <- imf_gdp_loss[, c("Country", "Population size")]
+  imf_gdp_loss <- imf_gdp_loss[, c("Country", "IMF GDP loss")]
   rownames(imf_gdp_loss) <- rownames(population_size) <- imf_gdp_loss[, "Country"]
-  imf_gdp_loss[, "IMF.GDP.loss"] <- imf_gdp_loss[, "IMF.GDP.loss"] * dollar_to_gbp
+  imf_gdp_loss[, "IMF GDP loss"] <- imf_gdp_loss[, "IMF GDP loss"] * dollar_to_gbp
   # Remove Korea
   imf_gdp_loss <- imf_gdp_loss[-which(rownames(imf_gdp_loss) == "Korea"), ]
   population_size <- population_size[-which(rownames(population_size) == "Korea"), ]
@@ -141,9 +138,8 @@ for(cmmid_simulation in c("A", "B", "C")) {
                                    dQALYs_lost = dQALYs_lost_cmmid,
                                    subcalculation_name = subcalculation_name)
       
-      covid_cea_table[[subcalculation_name]][country_name, c("dQALYs lost mitigation", "Costs mitigation")] <- c(temp$total_qalyloss, 
-                                                                                                                 temp$total_cost)
-      
+      covid_cea_table[[subcalculation_name]][country_name, c("dQALYs lost mitigation", "Costs mitigation")] <- 
+        c(temp$total_qalyloss, temp$total_cost)
       
       temp <- generate_costs_qalys(n_deaths = deaths_nomitigation[country_name] , n_cases = cases_nomitigation[country_name], 
                                    n_hospitalisations = hospitalisations_nomitigation[country_name],
@@ -151,13 +147,16 @@ for(cmmid_simulation in c("A", "B", "C")) {
                                    dQALYs_lost = dQALYs_lost_cmmid,
                                    subcalculation_name = subcalculation_name)
       
-      covid_cea_table[[subcalculation_name]][country_name, c("dQALYs lost no mitigation", "Costs no mitigation")] <- c(temp$total_qalyloss, 
-                                                                                                                       temp$total_cost)
+      covid_cea_table[[subcalculation_name]][country_name, c("dQALYs lost no mitigation", "Costs no mitigation")] <- 
+        c(temp$total_qalyloss, temp$total_cost)
       
-      covid_cea_table[[subcalculation_name]][country_name, "GDP Loss (?billion)"] <- imf_gdp_loss[country_name, "IMF.GDP.loss"]
+      covid_cea_table[[subcalculation_name]][country_name, "GDP Loss (?billion)"] <- 
+        imf_gdp_loss[country_name, "IMF GDP loss"]
       
       # Per person
-      covid_cea_table[[subcalculation_name]][country_name, "GDP Loss PP"] <- 1000000000 * covid_cea_table[[subcalculation_name]][country_name, "GDP Loss (?billion)"] / population_size[country_name, "Population.size"]
+      covid_cea_table[[subcalculation_name]][country_name, "GDP Loss PP"] <- 
+        1000000000 * covid_cea_table[[subcalculation_name]][country_name, "GDP Loss (?billion)"] / 
+        population_size[country_name, "Population size"]
     }
     
     # Greater incremental QALYs means greater QALYS saved
@@ -173,8 +172,8 @@ for(cmmid_simulation in c("A", "B", "C")) {
     covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?20k (?billion)"] <- (20000 *  covid_cea_table[[subcalculation_name]][, "Incremental QALYs"] - covid_cea_table[[subcalculation_name]][, "Incremental Costs"]) / 1000000000
     covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?30k (?billion)"] <- (30000 *  covid_cea_table[[subcalculation_name]][, "Incremental QALYs"] - covid_cea_table[[subcalculation_name]][, "Incremental Costs"]) / 1000000000
     # Per person
-    covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?30k PP"] <- 1000000000 * covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?30k (?billion)"] / population_size[, "Population.size"]
-    covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?20k PP"] <- 1000000000 * covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?20k (?billion)"] / population_size[, "Population.size"]
+    covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?30k PP"] <- 1000000000 * covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?30k (?billion)"] / population_size[, "Population size"]
+    covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?20k PP"] <- 1000000000 * covid_cea_table[[subcalculation_name]][, "Incremental net benefit at ?20k (?billion)"] / population_size[, "Population size"]
     
     # Rescale to millions of QALYs and billions of ?
     colnames(covid_cea_table[[subcalculation_name]]) <- c("dQALYs lost mitigation (million)", "Costs mitigation (?billion)", "dQALYs lost no mitigation (million)", "Costs no mitigation (?billion)",
@@ -194,9 +193,9 @@ for(cmmid_simulation in c("A", "B", "C")) {
   }
   
   
-  write.xlsx("header sheet", file = paste0(baseline_directory, "/results/covid_cea_table_", cmmid_simulation, "_smr", smr, ".xlsx"), sheetName = "header", append = FALSE)  
+  write.xlsx("header sheet", file = paste0("results/covid_cea_table_", cmmid_simulation, "_smr", smr, ".xlsx"), sheetName = "header", append = FALSE)  
   for(subcalculation_name in subcalculation_names) {
-    write.xlsx(covid_cea_table[[subcalculation_name]], file = paste0(baseline_directory, "/results/covid_cea_table_", cmmid_simulation, "_smr", smr, ".xlsx"), sheetName = subcalculation_name, append = TRUE)  
+    write.xlsx(covid_cea_table[[subcalculation_name]], file = paste0("results/covid_cea_table_", cmmid_simulation, "_smr", smr, ".xlsx"), sheetName = subcalculation_name, append = TRUE)  
   }
   
   
@@ -204,4 +203,4 @@ for(cmmid_simulation in c("A", "B", "C")) {
 
 # Export the QALYs lost per death under each scenario
 colnames(dQALYS_lost_table) <- names(dQALYs_lost)
-write.csv(dQALYS_lost_table, file = paste0(baseline_directory, "/results/qalys_lost_per_death.csv"))
+write.csv(dQALYS_lost_table, file = "results/qalys_lost_per_death.csv")
