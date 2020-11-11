@@ -111,39 +111,57 @@ for(country_name in country_names) {
   qol_norm_country <- qol_norm_data[, c("Age band", "index", country_name)]
   colnames(qol_norm_country) <- c("Age band", "start_age", "qol_weight")
   
-  # Need to append ONS lifetable after 85
+  # Need to append ONS lifetable after 85 to eurostat or WHO lifetables
   lifetable_male_uk_a85 <- lifetable_male_uk[lifetable_male_uk[, "age"] >= 85, c("age", "qx")]
   lifetable_female_uk_a85 <- lifetable_female_uk[lifetable_female_uk[, "age"] >= 85, c("age", "qx")]
   lifetable_male_uk_a85 <- cbind(rep(NA, dim(lifetable_male_uk_a85)[1]), lifetable_male_uk_a85)
   lifetable_female_uk_a85 <- cbind(rep(NA, dim(lifetable_female_uk_a85)[1]), lifetable_female_uk_a85)
   colnames(lifetable_male_uk_a85) <- colnames(lifetable_female_uk_a85) <- c("Age Group" , "age", "qx")
   
+  
   if(country_name == "UK") {
     lifetable_male = lifetable_male_uk
     lifetable_female = lifetable_female_uk
     
   } else {
-    # Extract the necessary lifetable data 
-    # Convert from factor to numeric
-    lifetable_female <- who_lifetables_qx[, c("Age Group", "age", paste0(country_name,"_female"))]
-    colnames(lifetable_female)[3] <- "qx"
-    lifetable_male <- who_lifetables_qx[, c("Age Group", "age", paste0(country_name,"_male"))]
-    colnames(lifetable_male)[3] <- "qx"
+    male_msg <- tryCatch(
+      lifetable_male <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = paste0(country_name, "_lifetable_male"))),
+      error = function(e){matrix(rep("Not available", 4), nrow = 2)})
+    female_msg <- tryCatch(
+      lifetable_female <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = paste0(country_name, "_lifetable_female"))),
+      error = function(e){matrix(rep("Not available", 4), nrow = 2)})
     
-    # WHO only reports to age 85. After this assume it is UK figures
-    # as otherwise overestimates QALYs lost in non-UK countries.
-    lifetable_male <- rbind(lifetable_male, lifetable_male_uk_a85)
-    lifetable_female <- rbind(lifetable_female, lifetable_female_uk_a85)
-    # Remove 85+ row
-    lifetable_male <- lifetable_male[-which(lifetable_male[, "Age Group"] == "85-100"), ]
-    lifetable_female <- lifetable_female[-which(lifetable_female[, "Age Group"] == "85-100"), ]
-
+    if(male_msg[1, 1] == "Not available" | female_msg[1, 1] == "Not available") {
+      
+      # Use the WHO data which only reports at wide intervals and not after age 85.
+      # Extract the necessary lifetable data 
+      # Convert from factor to numeric
+      lifetable_female <- who_lifetables_qx[, c("Age Group", "age", paste0(country_name,"_female"))]
+      colnames(lifetable_female)[3] <- "qx"
+      lifetable_male <- who_lifetables_qx[, c("Age Group", "age", paste0(country_name,"_male"))]
+      colnames(lifetable_male)[3] <- "qx"
+      
+      # WHO only reports to age 85. After this assume it is UK figures
+      # as otherwise overestimates QALYs lost in non-UK countries.
+      lifetable_male <- rbind(lifetable_male, lifetable_male_uk_a85)
+      lifetable_female <- rbind(lifetable_female, lifetable_female_uk_a85)
+      # Remove 85+ row
+      lifetable_male <- lifetable_male[-which(lifetable_male[, "Age Group"] == "85-100"), ]
+      lifetable_female <- lifetable_female[-which(lifetable_female[, "Age Group"] == "85-100"), ]
+      
+    } else {
+      # Append the UK lifetables if no data beyond age 84
+      if(max(as.numeric(lifetable_male[, "age"])) == 84) {
+        lifetable_male <- rbind(lifetable_male, lifetable_male_uk_a85[, c("age", "qx")])
+        lifetable_female <- rbind(lifetable_female, lifetable_female_uk_a85[, c("age", "qx")])
+      }
+    }
+    
     # If a country's age at death distribution is not reported use that of the UK
     if(sum(is.na(age_death_country[, "proportion"])) > 2) {
       age_death_country[, "proportion"] <- age_death_distribution[, "UK"]
     }
   }
-  
   
   dQALYs_lost[country_name] <- generate_dQALYs_lost(lifetable_female = lifetable_female, 
                        lifetable_male = lifetable_male, age_death = age_death_country,
@@ -152,6 +170,8 @@ for(country_name in country_names) {
   # Calculate modelled dQALYs lost under no mitigation scenario cmmid model
   age_death_country <- cmmid_age_death_country[, c("age", country_name)]
   colnames(age_death_country) <- c("age","proportion")
+  
+
   dQALYs_lost_cmmid[country_name] <- generate_dQALYs_lost(lifetable_female = lifetable_female, 
                                                     lifetable_male = lifetable_male, age_death= age_death_country,
                                                     qol_norm_country = qol_norm_country)
