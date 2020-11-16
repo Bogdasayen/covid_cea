@@ -33,7 +33,8 @@ qCM <- global_inputs["qCM", "Value"]
 # UK proportion female (may have to use this for all countries)
 prop_female <- global_inputs["prop_female", "Value"]
 
-# QALY inputs
+# Simulations to run
+cmmid_simulations <- c("A", "B", "C")
 
 
 # Reported cases
@@ -59,7 +60,7 @@ hospitalisations_mitigation["Sweden"] <- observed_hospitalisation_ratio * cases_
 country_level_hospitalisation_ratio <- hospitalisations_mitigation / cases_mitigation[country_names]
 
 dQALYS_lost_table <- matrix(nrow = 4, ncol = 5)
-rownames(dQALYS_lost_table) <- c("Mitigation", "A", "B", "C")
+rownames(dQALYS_lost_table) <- c("Mitigation", cmmid_simulations)
 
 # ONS lifetables for males and females in UK
 lifetable_male_uk <- as.data.frame(read_excel("data/covid_cea_input_data.xlsx", sheet = "uk_lifetable_male"))
@@ -76,10 +77,10 @@ age_death_distribution <- as.data.frame(read_excel("data/covid_cea_input_data.xl
 age_death_distribution <- age_death_distribution[-11,]
 
 # Table of cases, hospitalisations, and death under mitigation and each no mitigation scenario
-clinical_results <- matrix(nrow = length(country_names) * 4, ncol = 8)
+clinical_results <- as.data.frame(matrix(nrow = length(country_names) * 4, ncol = 8))
 colnames(clinical_results) <- c("Country", "QALYs lost per death", "Cases", "Hospitalisations",	"Deaths",
                                 "Cases PP", "Hospitalisations PP", "Deaths PP")
-rownames(clinical_results) <- paste(rep(c("Mitigation", "A", "B", "C"), each = length(country_names)), rep(country_names, 4))
+rownames(clinical_results) <- paste(rep(c("Mitigation", cmmid_simulations), each = length(country_names)), rep(country_names, 4))
 clinical_results[, "Country"] <- rep(country_names, 4)
 
 # Mitigation results are not dependent on modelling scenario
@@ -87,7 +88,15 @@ clinical_results[paste("Mitigation", country_names), "Cases"] <- cases_mitigatio
 clinical_results[paste("Mitigation", country_names), "Hospitalisations"] <- hospitalisations_mitigation[country_names]
 clinical_results[paste("Mitigation", country_names), "Deaths"] <- deaths_mitigation[country_names]
 
-for(cmmid_simulation in c("A", "B", "C")) {
+# Table of results for the publication
+publication_main_results <- as.data.frame(matrix(nrow = length(cmmid_simulations) * length(country_names), ncol = 6))
+colnames(publication_main_results) <- c("Scenario", "Country", "Incremental QALYs (million)", "Incremental Costs (£billion)", "Incremental net benefit at £20k PP", "Incremental net benefit at £30k PP")
+publication_main_results[, "Scenario"] <- rep(cmmid_simulations, each = length(country_names))
+publication_main_results[, "Country"] <- rep(country_names, length(cmmid_simulations))
+
+publication_cases_results <- publication_hospitalisation_results <- publication_death_results <- publication_main_results
+
+for(cmmid_simulation in cmmid_simulations) {
 
   source("code/calculate_qalys_4.R")
   clinical_results[paste("Mitigation", country_names), "QALYs lost per death"] <- dQALYs_lost[country_names]
@@ -228,7 +237,27 @@ for(cmmid_simulation in c("A", "B", "C")) {
   }
   saveWorkbook(wb, file = paste0("results/covid_cea_table_", cmmid_simulation, "_smr", smr, ".xlsx"), overwrite = TRUE)    
   
+  # Add to the publication results tables
+  publication_main_results[publication_main_results[, "Scenario"] == cmmid_simulation, -c(1:2)] <- 
+    covid_cea_table[["all_impacts"]][, colnames(publication_main_results)[-c(1:2)]]
+  publication_cases_results[publication_main_results[, "Scenario"] == cmmid_simulation, -c(1:2)] <- 
+    covid_cea_table[["cases_only"]][, colnames(publication_main_results)[-c(1:2)]]
+  publication_hospitalisation_results[publication_main_results[, "Scenario"] == cmmid_simulation, -c(1:2)] <- 
+    covid_cea_table[["hospitalisation_only"]][, colnames(publication_main_results)[-c(1:2)]]
+  publication_death_results[publication_main_results[, "Scenario"] == cmmid_simulation, -c(1:2)] <- 
+    covid_cea_table[["death_only"]][, colnames(publication_main_results)[-c(1:2)]]
+  
+  
 } # End loop over cmmid 
+
+# Export results in format needed for publication
+write.csv(publication_main_results, file = paste0("results/publication_main_results_", smr, ".csv"))
+# Create a table with all CEA results for the publication
+# Broken down by types of impact
+publication_breakdown_results <- cbind(publication_cases_results, 
+                                       publication_hospitalisation_results[, -c(1:2)],
+                                       publication_death_results[, -c(1:2)])
+write.csv(publication_breakdown_results, file = paste0("results/publication_breakdown_results_", smr, ".csv"))
 
 # Scale clinical results on outcomes to be per person
 clinical_results[, "Cases PP"] <- as.numeric(clinical_results[, "Cases"]) / rep(population_size[, "Population size"], 4)
@@ -236,8 +265,54 @@ clinical_results[, "Hospitalisations PP"] <- as.numeric(clinical_results[, "Hosp
 clinical_results[, "Deaths PP"] <- as.numeric(clinical_results[, "Deaths"]) / rep(population_size[, "Population size"], 4)
 
 # Export the clinical outcomes
-write.csv(clinical_results, file = "results/clinical_results.csv")
+write.csv(clinical_results, file = paste0("results/clinical_results_", smr, ".csv"))
 
-# Export the QALYs lost per death under each scenario
-colnames(dQALYS_lost_table) <- names(dQALYs_lost)
-write.csv(dQALYS_lost_table, file = "results/qalys_lost_per_death.csv")
+# Create incremental results table for events prevented by government response
+clinical_results_incremental <- clinical_results
+colnames(clinical_results_incremental) <- c("Country", "QALYS lost per death", "Cases prevented", "Hospitalisations prevented",
+                                            "Deaths prevented", "Cases prevented PP", "Hospitalisations prevented PP", 
+                                            "Deaths prevented PP")
+for(cmmid_simulation in cmmid_simulations) {
+  # Difference in row value but exclude country and QALYs per death
+  clinical_results_incremental[grep(cmmid_simulation, rownames(clinical_results_incremental)), -c(1:2)] <- 
+    clinical_results[grep(cmmid_simulation, rownames(clinical_results_incremental)), -c(1:2)] - 
+    clinical_results[grep("Mitigation", rownames(clinical_results_incremental)), -c(1:2)]
+}
+# Remove the mitigation rows from the outcomes prevented table
+clinical_results_incremental <- clinical_results_incremental[-grep("Mitigation", rownames(clinical_results_incremental)), ]
+
+# Export the clinical outcomes prevented
+write.csv(clinical_results, file = "results/clinical_results_incremental_", smr, ".csv")
+
+
+# Illustrate the clinical outcomes results
+pdf(paste("results/outcomes_prevented_pp_", smr, ".pdf"))
+par(mfrow = c(2,2))
+outcomes <- c("Cases prevented PP", "Hospitalisations prevented PP", "Deaths prevented PP")
+outcome_names <- c("Cases", "Hospitalisations", "Deaths")
+names(outcome_names) <- outcomes
+for(outcome in outcomes) {
+  # Create plotting area
+  plot(c(0, 0), col = 0, xlim = c(1, 5), ylim = 1.1 * c(0, max(clinical_results_incremental[, outcome])),
+       ylab = outcome_names[outcome], xlab = "", xaxt = "n")
+  for(country_name in country_names) {
+    # Scenario A is base case
+    points(y = clinical_results_incremental[grep(country_name, rownames(clinical_results_incremental)), outcome][1],
+          x = which(country_names == country_name), lwd = 2)
+    # Scenarios B and C are lower and upper limits of R0
+    lines(y = clinical_results_incremental[grep(country_name, rownames(clinical_results_incremental)), outcome][2:3],
+           x = rep(which(country_names == country_name), 2), lwd = 2)
+  }
+  # UK lines for scenarios A, B, and C for ease of comparison
+  lines(y = clinical_results_incremental[grep("UK", rownames(clinical_results_incremental)), outcome][c(1, 1)],
+        x = c(1, 5))
+  lines(y = clinical_results_incremental[grep("UK", rownames(clinical_results_incremental)), outcome][c(2, 2)],
+        x = c(1, 5), lty = 2)
+  lines(y = clinical_results_incremental[grep("UK", rownames(clinical_results_incremental)), outcome][c(3, 3)],
+        x = c(1, 5), lty = 2)
+  
+  axis(side = 1, at = c(1:5), labels = country_names, las = 2)
+}
+dev.off()
+
+
