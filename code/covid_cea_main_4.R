@@ -4,6 +4,7 @@
 
 library(readxl)
 library(writexl)
+library(openxlsx)
 
 
 # Function to run decision tree model
@@ -316,3 +317,17 @@ for(outcome in outcomes) {
 dev.off()
 
 
+##### alternative plot in ggplot
+library(tidyverse)
+library(ggplot2)
+cri_plot <- clinical_results_incremental %>% select(c(1,6,7,8)) %>% mutate(category=gsub(" [A-z]*","",row.names(.))) %>% pivot_longer(2:4,names_to="Outcome",values_to="Value") %>% pivot_wider(names_from=category,values_from=Value)
+
+linevals <- cri_plot %>% filter(Country=="UK")
+
+pdf("results/outcomeplotsGG.pdf",width=9,height=5)
+cri_plot %>% ggplot(aes(x=Country,y=A)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0.2) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome,scales="free") + xlab("")
+dev.off()
+
+pdf("results/outcomeplotsGG_2.pdf",width=9,height=8)
+cri_plot %>% ggplot(aes(x=Country,y=A)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0.2) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome) + xlab("")
+dev.off()
