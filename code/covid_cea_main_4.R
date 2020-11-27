@@ -5,6 +5,9 @@
 library(readxl)
 library(writexl)
 library(openxlsx)
+library(tidyverse)
+library(ggplot2)
+
 
 
 # Function to run decision tree model
@@ -24,6 +27,7 @@ subcalculation_names <- c("all_impacts", "cases_only", "hospitalisation_only", "
 
 # Standardised mortality ratio
 smr <- global_inputs["smr", "Value"] #0.111*1.6+(1-0.111)*1
+smr <- 2.0
 # Discounting
 discount_rate <- global_inputs["discount_rate", "Value"]
 
@@ -96,6 +100,7 @@ publication_main_results[, "Scenario"] <- rep(cmmid_simulations, each = length(c
 publication_main_results[, "Country"] <- rep(country_names, length(cmmid_simulations))
 
 publication_cases_results <- publication_hospitalisation_results <- publication_death_results <- publication_main_results
+
 
 for(cmmid_simulation in cmmid_simulations) {
 
@@ -251,6 +256,7 @@ for(cmmid_simulation in cmmid_simulations) {
   
 } # End loop over cmmid 
 
+###################################################################################################
 # Export results in format needed for publication
 write.csv(publication_main_results, file = paste0("results/publication_main_results_", smr, ".csv"))
 # Create a table with all CEA results for the publication
@@ -260,6 +266,36 @@ publication_breakdown_results <- cbind(publication_cases_results,
                                        publication_death_results[, -c(1:2)])
 write.csv(publication_breakdown_results, file = paste0("results/publication_breakdown_results_", smr, ".csv"))
 
+###################################################################################################
+# Table with GDP loss under each scenario and the % difference with the total loss scenario and 
+# healthcare net benefit per capita
+publication_economic_results <- as.data.frame(matrix(nrow = length(country_names), ncol = 5))
+colnames(publication_economic_results) <- c("Country", "GDP Loss PP (£)", "GDP Loss scenario all PP (£)",
+                                            "% recouped at £20k/QALY", "% recouped at £30k/QALY")
+rownames(publication_economic_results) <- publication_economic_results[, "Country"] <- country_names
+publication_economic_results[, c("GDP Loss PP (£)", "GDP Loss scenario all PP (£)")] <- 
+  covid_cea_table[["all_impacts"]][,  c("GDP Loss PP (£)", "GDP Loss scenario all PP (£)")]
+# Add % difference for each country
+for(country_name in country_names) {
+  publication_economic_results[country_name, "% recouped at £20k/QALY"] <- paste0(format(100 * publication_main_results[publication_main_results$Scenario == "A" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £20k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1), " (",
+    format(100 * publication_main_results[publication_main_results$Scenario == "B" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £20k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1), ", ",
+    format(100 * publication_main_results[publication_main_results$Scenario == "C" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £20k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1),")")
+  
+  publication_economic_results[country_name, "% recouped at £30k/QALY"] <- paste0(format(100 * publication_main_results[publication_main_results$Scenario == "A" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £30k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1), " (",
+    format(100 * publication_main_results[publication_main_results$Scenario == "B" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £30k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1), ", ",
+    format(100 * publication_main_results[publication_main_results$Scenario == "C" & publication_main_results$Country == country_name,
+      "Incremental net benefit at £30k PP"] / publication_economic_results[country_name, "GDP Loss scenario all PP (£)"], digits = 3, nsmall = 1),")")
+  
+}
+write.csv(publication_economic_results, file = paste0("results/publication_economic_results_", smr, ".csv"))
+
+
+###################################################################################################
 # Scale clinical results on outcomes to be per person
 clinical_results[, "Cases PP"] <- as.numeric(clinical_results[, "Cases"]) / rep(population_size[, "Population size"], 4)
 clinical_results[, "Hospitalisations PP"] <- as.numeric(clinical_results[, "Hospitalisations"]) / rep(population_size[, "Population size"], 4)
@@ -268,6 +304,7 @@ clinical_results[, "Deaths PP"] <- as.numeric(clinical_results[, "Deaths"]) / re
 # Export the clinical outcomes
 write.csv(clinical_results, file = paste0("results/clinical_results_", smr, ".csv"))
 
+###################################################################################################
 # Create incremental results table for events prevented by government response
 clinical_results_incremental <- clinical_results
 colnames(clinical_results_incremental) <- c("Country", "QALYS lost per death", "Cases prevented", "Hospitalisations prevented",
@@ -285,7 +322,7 @@ clinical_results_incremental <- clinical_results_incremental[-grep("Mitigation",
 # Export the clinical outcomes prevented
 write.csv(clinical_results, file = "results/clinical_results_incremental_", smr, ".csv")
 
-
+###################################################################################################
 # Illustrate the clinical outcomes results
 pdf(paste("results/outcomes_prevented_pp_", smr, ".pdf"))
 par(mfrow = c(2,2))
@@ -316,18 +353,16 @@ for(outcome in outcomes) {
 }
 dev.off()
 
-
+###################################################################################################
 ##### alternative plot in ggplot
-library(tidyverse)
-library(ggplot2)
 cri_plot <- clinical_results_incremental %>% select(c(1,6,7,8)) %>% mutate(category=gsub(" [A-z]*","",row.names(.))) %>% pivot_longer(2:4,names_to="Outcome",values_to="Value") %>% pivot_wider(names_from=category,values_from=Value)
 
 linevals <- cri_plot %>% filter(Country=="UK")
 
-pdf("results/outcomeplotsGG.pdf",width=9,height=5)
+pdf("results/outcomeplotsGG_smr_", smr, ".pdf",width=9,height=5)
 cri_plot %>% ggplot(aes(x=Country,y=A)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0.2) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome,scales="free") + xlab("")
 dev.off()
 
-pdf("results/outcomeplotsGG_2.pdf",width=9,height=8)
+pdf("results/outcomeplotsGG_2_smr", smr, ".pdf",width=9,height=8)
 cri_plot %>% ggplot(aes(x=Country,y=A)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0.2) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome) + xlab("")
 dev.off()
