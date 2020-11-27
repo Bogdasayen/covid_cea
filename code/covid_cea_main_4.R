@@ -366,3 +366,22 @@ dev.off()
 pdf("results/outcomeplotsGG_2_smr", smr, ".pdf",width=9,height=8)
 cri_plot %>% ggplot(aes(x=Country,y=A)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0.2) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome) + xlab("")
 dev.off()
+
+
+################################################################################################
+### figure 2
+
+plot2 <- read.xlsx("./data/fig2in.xlsx")
+
+pdf("./results/figure2_options.pdf",width=8,height=5)
+plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% ggplot(aes(x=StringencyMax,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) #+ theme(legend.position = "bottom")
+
+plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% ggplot(aes(x=StringencyMean,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Mean Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) #+ theme(legend.position = "bottom")
+
+plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% ggplot(aes(x=TestsDeath,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Tests per death") + geom_errorbar(aes(ymin=Low,ymax=High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) #+ theme(legend.position = "bottom")
+dev.off()
+
+# in one
+plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% pivot_longer(2:4,names_to="xax") %>% ggplot(aes(x=value,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High),size=0.4,width=0)+ facet_wrap(~xax,scales="free") 
+
+
