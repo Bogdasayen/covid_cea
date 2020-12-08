@@ -359,14 +359,19 @@ dev.off()
 cri_plot <- clinical_results_incremental %>% select(c(1,6,7,8)) %>% mutate(category=gsub(" [A-z]*","",row.names(.))) %>% pivot_longer(2:4,names_to="Outcome",values_to="Value") %>% pivot_wider(names_from=category,values_from=Value)
 
 linevals <- cri_plot %>% filter(Country=="UK")
+linevals$fac <- c("Cases prevented per capita","Hospitalisations prevented per capita","Deaths prevented per capita")
+
+cri_plot$fac <- as.factor(cri_plot$Outcome)
+levels(cri_plot$fac) <- c("Cases prevented per capita","Deaths prevented per capita","Hospitalisations prevented per capita")
 
 pdf("results/outcomeplotsGG_smr_", smr, ".pdf",width=9,height=5)
-p1 <- cri_plot %>% ggplot(aes(x=Country,y=A,color=Country)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~Outcome,scales="free") + xlab("") + theme(legend.position="bottom")#+ ggtitle("D")
+p1 <- cri_plot %>% ggplot(aes(x=Country,y=A,color=Country)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~fac,scales="free") + xlab("") + theme(legend.position="bottom")#+ ggtitle("D")
 dev.off()
 
 pdf("./results/outcomesplot1.pdf",width=9,height=5)
 p1
 dev.off()
+
 
 
 # pdf("results/outcomeplotsGG_2_smr", smr, ".pdf",width=9,height=8)
@@ -381,17 +386,17 @@ plot2 <- read.xlsx("./data/fig2in.xlsx")
 plot2b <- plot2 %>% pivot_wider(values_from=c(Recoup30k,ModelDeathP1k),names_from=Simulation) 
 
 
-p2 <- plot2b %>% ggplot(aes(x=StringencyMax,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("A")
+p2 <- plot2b %>% ggplot(aes(x=StringencyMax,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("A")
 
-p5 <- plot2b %>% ggplot(aes(x=StringencyMean,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Mean Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("B")
+p5 <- plot2b %>% ggplot(aes(x=MeanAge,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Mean age of population") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("B")
 
-p3 <- plot2b %>% ggplot(aes(x=TestsDeath,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Tests per death") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("C") #B
+p3 <- plot2b %>% ggplot(aes(x=TestsDeath,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Tests per death") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("C") #B
 
-p4 <- plot2b %>% ggplot(aes(x=ModelDeathP1k_Middle,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Predicted Death Rate per 1000 (R0=2.7)") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0)+ geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("D") #C
+p4 <- plot2b %>% ggplot(aes(x=ModelDeathP1k_Middle,y=Recoup30k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £30k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Predicted Death Rate per 1000 (R0=2.7)") + geom_errorbar(aes(ymin=Recoup30k_Low,ymax=Recoup30k_High,color=Country),size=0.4,width=0)+ geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("D") #C
 
-pdf("./results/figure2_combined.pdf",width=8,height=10,onefile=F)
-ggarrange(p2, p3, p4, ncol=1, nrow=3, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
-dev.off()
+# pdf("./results/figure2_combined.pdf",width=8,height=10,onefile=F)
+# ggarrange(p2, p3, p4, ncol=1, nrow=3, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
+# dev.off()
 
 pdf("./results/figure2_combined4.pdf",width=12,height=9,onefile=F)
 ggarrange(p2,p5, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
