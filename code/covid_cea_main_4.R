@@ -28,7 +28,7 @@ subcalculation_names <- c("all_impacts", "cases_only", "hospitalisation_only", "
 
 # Standardised mortality ratio
 smr <- global_inputs["smr", "Value"] #0.111*1.6+(1-0.111)*1
-smr <- 2.0
+#smr <- 1.1
 # Discounting
 discount_rate <- global_inputs["discount_rate", "Value"]
 
@@ -321,11 +321,11 @@ for(cmmid_simulation in cmmid_simulations) {
 clinical_results_incremental <- clinical_results_incremental[-grep("Mitigation", rownames(clinical_results_incremental)), ]
 
 # Export the clinical outcomes prevented
-write.csv(clinical_results, file = "results/clinical_results_incremental_", smr, ".csv")
+write.csv(clinical_results, file = paste0("results/clinical_results_incremental_", smr, ".csv"))
 
 ###################################################################################################
 # Illustrate the clinical outcomes results
-pdf(paste("results/outcomes_prevented_pp_", smr, ".pdf"))
+pdf(paste0("results/outcomes_prevented_pp_", smr, ".pdf"))
 par(mfrow = c(2,2))
 outcomes <- c("Cases prevented PP", "Hospitalisations prevented PP", "Deaths prevented PP")
 outcome_names <- c("Cases", "Hospitalisations", "Deaths")
@@ -364,7 +364,7 @@ linevals$fac <- c("Cases prevented per capita","Hospitalisations prevented per c
 cri_plot$fac <- as.factor(cri_plot$Outcome)
 levels(cri_plot$fac) <- c("Cases prevented per capita","Deaths prevented per capita","Hospitalisations prevented per capita")
 
-pdf("results/outcomeplotsGG_smr_", smr, ".pdf",width=9,height=5)
+pdf(paste0("results/outcomeplotsGG_smr_", smr, ".pdf"),width=9,height=5)
 p1 <- cri_plot %>% ggplot(aes(x=Country,y=A,color=Country)) + geom_point(size=2) + theme_minimal()  + geom_errorbar(aes(ymax=C,ymin=B),width=0) + ylab("Outcomes saved per capita") + geom_hline(data=linevals,aes(yintercept=A)) + geom_hline(data=linevals,aes(yintercept=B),linetype="dashed") + geom_hline(data=linevals,aes(yintercept=C),linetype="dashed")+ facet_wrap(~fac,scales="free") + xlab("") + theme(legend.position="bottom")#+ ggtitle("D")
 dev.off()
 
@@ -380,7 +380,7 @@ dev.off()
 
 
 ################################################################################################
-### figure 2
+### figure 2 using £30k threshold
 
 plot2 <- read.xlsx("./data/fig2in.xlsx")
 plot2b <- plot2 %>% pivot_wider(values_from=c(Recoup30k,ModelDeathP1k),names_from=Simulation) 
@@ -398,11 +398,35 @@ p4 <- plot2b %>% ggplot(aes(x=ModelDeathP1k_Middle,y=Recoup30k_Middle,size=Death
 # ggarrange(p2, p3, p4, ncol=1, nrow=3, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
 # dev.off()
 
-pdf("./results/figure2_combined4.pdf",width=12,height=9,onefile=F)
+pdf(paste0("./results/figure2_combined4_30k_smr", smr, ".pdf"),width=12,height=9,onefile=F)
 ggarrange(p2,p5, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
 dev.off()
 
 # # in one
 # plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% pivot_longer(2:4,names_to="xax") %>% ggplot(aes(x=value,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High),size=0.4,width=0)+ facet_wrap(~xax,scales="free") 
 
+################################################################################################
+### figure 2 using 20k threshold
+
+plot2c <- plot2 %>% pivot_wider(values_from=c(Recoup20k,ModelDeathP1k),names_from=Simulation) 
+
+
+p2 <- plot2c %>% ggplot(aes(x=StringencyMax,y=Recoup20k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £20k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Recoup20k_Low,ymax=Recoup20k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("A")
+
+p5 <- plot2c %>% ggplot(aes(x=MeanAge,y=Recoup20k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £20k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Median age of population") + geom_errorbar(aes(ymin=Recoup20k_Low,ymax=Recoup20k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(legend.position="bottom", legend.box="vertical", legend.margin=margin(), panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("B")
+
+p3 <- plot2c %>% ggplot(aes(x=TestsDeath,y=Recoup20k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £20k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Tests per death") + geom_errorbar(aes(ymin=Recoup20k_Low,ymax=Recoup20k_High,color=Country),size=0.4,width=0) + geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("C") #B
+
+p4 <- plot2c %>% ggplot(aes(x=ModelDeathP1k_Middle,y=Recoup20k_Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP offset at £20k/QALY") + guides(size=guide_legend("Deaths/1000 people")) + theme_minimal() + xlab("Predicted Death Rate per 1000 (R0=2.7)") + geom_errorbar(aes(ymin=Recoup20k_Low,ymax=Recoup20k_High,color=Country),size=0.4,width=0)+ geom_text(aes(label=Country),hjust=0.5, vjust=0,size=3) + theme(panel.border = element_rect(colour = "black", fill=NA)) + ggtitle("D") #C
+
+# pdf("./results/figure2_combined.pdf",width=8,height=10,onefile=F)
+# ggarrange(p2, p3, p4, ncol=1, nrow=3, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
+# dev.off()
+
+pdf(paste0("./results/figure2_combined4_20k_smr", smr, ".pdf"),width=12,height=9,onefile=F)
+ggarrange(p2,p5, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
+dev.off()
+
+# # in one
+# plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% pivot_longer(2:4,names_to="xax") %>% ggplot(aes(x=value,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High),size=0.4,width=0)+ facet_wrap(~xax,scales="free") 
 
