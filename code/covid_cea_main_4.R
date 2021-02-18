@@ -372,6 +372,13 @@ pdf("./results/outcomesplot1.pdf",width=9,height=5)
 p1
 dev.off()
 
+tiff("./results/figure1colour.tiff",width=9,height=5,units="in",type="cairo",res=300)
+p1
+dev.off()
+
+tiff("./results/figure1bw.tiff",width=9,height=5,units="in",type="cairo",res=300)
+p1+ scale_colour_grey()
+dev.off()
 
 
 # pdf("results/outcomeplotsGG_2_smr", smr, ".pdf",width=9,height=8)
@@ -401,6 +408,15 @@ p4 <- plot2b %>% ggplot(aes(x=ModelDeathP1k_Middle,y=Recoup30k_Middle,size=Death
 pdf(paste0("./results/figure2_combined4_30k_smr", smr, ".pdf"),width=12,height=9,onefile=F)
 ggarrange(p2,p5, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
 dev.off()
+
+tiff("./results/figure2colour.tiff",width=12,height=9,units="in",type="cairo",res=300)
+ggarrange(p2,p5, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2))
+dev.off()
+
+tiff("./results/figure2bw.tiff",width=12,height=9,units="in",type="cairo",res=300)
+ggarrange(p2 + scale_colour_grey(),p5 + scale_colour_grey(), p3 + scale_colour_grey(), p4 + scale_colour_grey(), ncol=2, nrow=2, common.legend = TRUE, legend="bottom",legend.grob=get_legend(p2 + scale_colour_grey()))
+dev.off()
+
 
 # # in one
 # plot2 %>% pivot_wider(values_from=Recoup30k,names_from=Simulation) %>% pivot_longer(2:4,names_to="xax") %>% ggplot(aes(x=value,y=Middle,size=DeathsP1k)) + geom_point(aes(colour=Country)) + ylab("% GDP recouped at £30k/QALY") + guides(size=guide_legend("Deaths per\n1k population")) + theme_minimal() + xlab("Maximum Stringency Index between 1 January and 20 July 2020") + geom_errorbar(aes(ymin=Low,ymax=High),size=0.4,width=0)+ facet_wrap(~xax,scales="free") 
